@@ -1,0 +1,59 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1404\cocoasubrtf460
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 The MeiTagAlpha Encryption System\
+\
+IMPLEMENTATION\
+Implementing encryption over python is now simplified with this set of code. Basic implementation is to copy the files in each side of the communication to the appropriate device in the same folder as the communicating program, and to copy the code in the ImpMeiClient or ImpMeiServer files. This will automatically set up an encrypted connection based on the credentials provided in the txt files.\
+\
+DEPENDENCIES, ETC\
+Install python versions 3.*, and run as python3. Make code compatible with python 3.*! Needs custom credentials in the txt files. Needs LibUDev on Pi (sudo apt-get install libudev should be it). Needs Pycrypto and cryptography (sudo pip3 install pycrypto, sudo pip3 install cryptography). Have not tested with PC, but should be fine with these dependencies. I hope that works. Please be smart about it.\
+\
+FUTURE WORK\
+Future needs: to make the system faster, so that a large scale version is viable for python on Pi\'92s. Currently information will only go one way, and connection problems, like starting the server side first, is on the behalf of the user. Furthermore, port number (which must be different for every encrypted line of communication) has to be changed for each instance. For larger scale implementation, please handle this.\
+Some suggestions include using a separate program to handle individual Mei\'92s and assign them ports. The individual Mei\'92s would then be separate threads (see threading module) and be assigned a port number. Each would then queue up messages in a collective queue (see queue module) with a fixed length part that indicates the internal program the message goes to. A separate thread would internal TCP (IP =\'92127.0.0.1\'92) the messages to their respective server.\
+Also, some way to make both sides both Server and Client would be nice. The major problem is contacting the other side and assigning roles to the same program. I have tried initialization times, which kind of works, but the problems lies in computational power. Contacting requires a separate thread to ping the other side constantly until that side begins listening. The Pi can\'92t handle extensive, reiterated function calls in threads, and so I/O over TCP with calls on a thread daemon with a loop 
+\i will
+\i0  fail. Probably a better solution is simply to code without the TCP.py calls. That is simply a suggestion.\
+It may be more efficient to use C code or to use direct memory (again, likely will need C). This is a challenge\'85.\
+\
+PROGRAMMING\
+This main MeiServer and MeiClient class handles all secure communication, from login to conversation. It is a six step process:\
+1. RSA key generation\
+
+\i RSA keys are based on semi-prime number math. It is computationally easy to take 2 primes from a list of primes and multiply them into one semi-prime (19*17 = 323, 1 calculation/encryption). It is much harder to divide the semi-prime back into two integers (323/\{2,3,5,7,11,13,17\} 7 calculation/decryption), on an order of about half the size of the smaller prime. RSA keys are more advanced than this, with modulus exponents, which raise the computation time further. As such, it is possible to give the semi-prime as the key, and expect to be the only one to know the primes that created it and  decrypt the message.
+\i0 \
+2. Public key exchange\
+
+\i Public keys encrypt, private keys decrypt. As such, giving another device a public key ensures that all communication that can be decrypted with the private key came from the same device. It does not guarantee anything besides that only 2 devices (unless the other so chooses) can know that data.\
+
+\i0 3. ID exchange over RSA\
+
+\i RSA again ensures only these two devices know this info, to prevent parrot attacks\
+
+\i0 4. Salt exchange\
+
+\i We need a salt for symmetrical encryption.This is more secure and faster. Furthermore, it allows us to use the password that we have in the system without ever exposing it to anyone who does not previously know it. If we sent the password by RSA, obviously this would expose it to attackers who spam the RSA section.\
+
+\i0 5. ID exchange over Symmetric Encryption\
+
+\i Using the password as a vector for the \ul symmetrical encryption\ulnone  means that you have to know the password and the salt to understand the message and thus back-calculate the password, i.e. password is not exposed. Only these two devices know the salt, and only authorized devices should know the password.\
+
+\i0 6. Begin the salt-cycle\
+
+\i To avoid parrot-attacks, we generate new salts for every communication to the server and send back to the user. As such, we can send unlimited numbers of repetitive messages that are encrypted, unique, and uncrackable to the attacker, as symmetrical encryption is mathematically in theory impossible to decode.
+\i0 \
+The difference between Server and Client is simply order of communication, as cross talk locks up TCP communication.\
+\
+The system also has a ban IP system. It simply will cease talking after 100 failures, just in case someone is dumb enough to try to brute force their way in. As such, this system is pretty much impossible to hack for anyone at Emory.\
+\
+Extra Notes:\
+TCP.py has two methods, that only take messages as byte code, IP\'92s as strings. Message conversion to byte code is:\
+message = \'91hi\'92\
+bytecode = message.encode(\'91utf-8\'92)\
+original = bytecode.decode(\'91utf-8\'92)\
+All encryption code (SymmetricCryptoTest.py and PKCSEncryptDecrypt.py) requires byte code inputs. Do not use strings.\
+Be aware that RSA has an upper limit on message length. You can increase this if you so desire by inputting a custom byte code size. It does not necessarily need to be an exponent of 2. Also be aware that increasing this exponentially increases computational time. A few extra bytes can go from a second to minutes!}
